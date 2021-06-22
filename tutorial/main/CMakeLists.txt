@@ -1,8 +1,10 @@
+idf_build_get_property(target IDF_TARGET)
+
 execute_process(
-    COMMAND python ${COMPONENT_PATH}/../../tool/convert.py -t ${IDF_TARGET} -i ${COMPONENT_PATH}/../model/npy -n mnist_coefficient -o ${COMPONENT_PATH}/../model    
+    COMMAND python ${COMPONENT_PATH}/../../tool/convert.py -t ${IDF_TARGET} -i ${COMPONENT_PATH}/../model/npy -n mnist_coefficient -o ${COMPONENT_PATH}/../model
 )
 
-set(srcs            main.cpp
+set(srcs            app_main.cpp
                     ../model/mnist_coefficient.cpp)
 
 set(src_dirs        ../model)
@@ -35,6 +37,3 @@ endif()
 
 target_link_libraries(${COMPONENT_TARGET} ${links})
 target_link_libraries(${COMPONENT_TARGET} ${lib})
-
-
-
