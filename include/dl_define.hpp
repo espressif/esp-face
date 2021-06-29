@@ -12,18 +12,6 @@
 #define DL_SPIRAM_SUPPORT 0
 #endif
 
-#if CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32S3
-#define CONFIG_XTENSA_BOOST 1
-#else
-#define CONFIG_XTENSA_BOOST 0
-#endif
-
-#if CONFIG_IDF_TARGET_ESP32S3
-#define CONFIG_TIE728_BOOST 1
-#else
-#define CONFIG_TIE728_BOOST 0
-#endif
-
 #if CONFIG_IDF_TARGET_ESP32
 #define CONFIG_DEFAULT_ASSIGN_CORE \
     {                              \
