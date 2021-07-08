@@ -14,52 +14,59 @@ namespace dl
         namespace cache
         {
             /**
-             * @brief           Init preload. call this function to turn on or turn off the preload.  
+             * @brief Initialize preload.
              * 
-             * @param preload   1: turn on the preload. 0: turn off the preload.
-             * @return int8_t 
-             *                  1: Init sucessfully.
-             *                  0: Init suceesfully, autoload has been turned off.
-             *                  -1: Init failed, the chip does not support preload.
+             * @param preload One of 1 or 0,
+             *                - 1: turn on the preload
+             *                - 0: turn off the preload
+             * @return 
+             *         - 1: Initialize successfully
+             *         - 0: Initialize successfully, autoload has been turned off
+             *         - -1: Initialize failed, the chip does not support preload
              */
             int8_t preload_init(uint8_t preload = 1);
 
             /**
-             * @brief           Call preload.
+             * @brief Preload memory.
              * 
-             * @param addr      The start address of data to be preloaded.
-             * @param size      The size(btyes) of the data to be preloaded.
+             * @param addr the start address of data to be preloaded
+             * @param size the size of the data in byte to be preloaded
              */
             void preload_func(uint32_t addr, uint32_t size);
 
             /**
-             * @brief           Init autoload. call this function to turn on or turn off the autoload.  
+             * @brief Initialize autoload. 
              * 
-             * @param autoload  1: turn on the autoload. 0: turn off the autoload.
-             * @param trigger   0: miss. 1: hit. 2: both
-             * @param linesize  the number of cache lines to be autoloaded.
-             * @return int8_t  
-             *                  1: Init sucessfully.
-             *                  0: Init suceesfully, preload has been turned off.
-             *                  -1: Init failed, the chip does not support autoload.
+             * @param autoload  One of 1 or 0,
+             *                  - 1: turn on the autoload
+             *                  - 0: turn off the autoload
+             * @param trigger   One of 0 or 1 or 2,
+             *                  - 0: miss, TODO:@yuanjiong
+             *                  - 1: hit, TODO:@yuanjiong
+             *                  - 2: both,TODO:@yuanjiong
+             * @param line_size the number of cache lines to be autoloaded
+             * @return status,
+             *         - 1: Initialize sucessfully
+             *         - 0: Initialize suceesfully, preload has been turned off
+             *         - -1: Initialize failed, the chip does not support autoload
              */
-            int8_t autoload_init(uint8_t autoload = 1, uint8_t trigger = 2, uint8_t linesize = 0);
+            int8_t autoload_init(uint8_t autoload = 1, uint8_t trigger = 2, uint8_t line_size = 0);
 
             /**
-             * @brief           Call autoload.           
+             * @brief Autoload memory.           
              * 
-             * @param addr1     The start address of data1 to be autoloaded.
-             * @param size1     The size(btyes) of the data1 to be preloaded.
-             * @param addr2     The start address of data2 to be autoloaded.
-             * @param size2     The size(btyes) of the data2 to be preloaded.
+             * @param addr1 the start address of data1 to be autoloaded
+             * @param size1 the size of the data1 in byte to be preloaded
+             * @param addr2 the start address of data2 to be autoloaded
+             * @param size2 the size of the data2 in byte to be preloaded
              */
             void autoload_func(uint32_t addr1, uint32_t size1, uint32_t addr2, uint32_t size2);
 
             /**
-             * @brief           Call autoload. 
+             * @brief Autoload memory.
              * 
-             * @param addr1     The start address of data1 to be autoloaded.
-             * @param size1     The size(btyes) of the data1 to be preloaded.
+             * @param addr1 the start address of data1 to be autoloaded
+             * @param size1 the size of the data1 in byte to be preloaded
              */
             void autoload_func(uint32_t addr1, uint32_t size1);
         }

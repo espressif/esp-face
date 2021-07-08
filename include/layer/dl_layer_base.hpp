@@ -7,18 +7,18 @@ namespace dl
     namespace layer
     {
         /**
-         * @brief Base class for layer
+         * @brief Base class for layer.
          * 
          */
         class Layer
         {
         public:
-            char *name; /*<! layer name >*/
+            char *name; /*<! name of layer >*/
 
             /**
-             * @brief Construct a new Layer object
+             * @brief Construct a new Layer object.
              * 
-             * @param name 
+             * @param name name of layer.
              */
             Layer(const char *name = NULL);
 
@@ -32,8 +32,19 @@ namespace dl
 } // namespace dl
 
 #if DL_LOG_LAYER_LATENCY
+/**
+ * @brief Initialize.
+ */
 #define DL_LOG_LAYER_LATENCY_INIT() dl::tool::Latency latency
+
+/**
+ * @brief Time starts.
+ */
 #define DL_LOG_LAYER_LATENCY_START() latency.start()
+
+/**
+ * @brief Time ends and printed.
+ */
 #define DL_LOG_LAYER_LATENCY_END(prefix, key) \
     latency.end();                            \
     latency.print(prefix, key)

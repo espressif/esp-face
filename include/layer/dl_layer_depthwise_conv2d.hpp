@@ -8,36 +8,43 @@ namespace dl
     namespace layer
     {
         /**
-         * @brief Activation(DepthwiseConv2D(filter, input) + bias)
+         * @brief Activation(DepthwiseConv2D(filter, input) + bias).
          * 
-         * @tparam feature_t      type of input
+         * @tparam feature_t supports int16_t and int8_t,
+         *         - int16_t: stands for operation in int16_t quantize
+         *         - int8_t: stands for operation in int8_t quantize
          */
         template <typename feature_t>
         class DepthwiseConv2D : public Layer
         {
         private:
-            const Filter<feature_t> *filter;         /*<! filter >*/
+            const Filter<feature_t> *filter;         /*<! filter of DepthwiseConv2D >*/
             const int stride_y;                      /*<! stride in height >*/
             const int stride_x;                      /*<! stride in width >*/
-            const padding_type_t padding_type;       /*<! padding type >*/
-            const Bias<feature_t> *bias;             /*<! bias >*/
-            const Activation<feature_t> *activation; /*<! activation >*/
-            std::vector<int> padding;                /*<! padding >*/
+            const padding_type_t padding_type;       /*<! one of PADDING_VALID or PADDING_SAME or PADDING_SAME_MXNET >*/
+            const Bias<feature_t> *bias;             /*<! bias of DepthwiseConv2D, if you don't specify anything, no bias is added >*/
+            const Activation<feature_t> *activation; /*<! activation of DepthwiseConv2D, if you don't specify anything, no activation is applied >*/
+            std::vector<int> padding;                /*<! padding size needed in [top, bottom, left, right] of this operation >*/
 
         public:
-            Tensor<feature_t> output; /*<! output >*/
+            Tensor<feature_t> output; /*<! output of DepthwiseConv2D >*/
 
             /**
-             * @brief Construct a new Depthwise Conv2D object.
+             * @brief Construct a new DepthwiseConv2D object.
              * 
-             * @param output_exponent 
-             * @param filter 
-             * @param bias 
-             * @param activation 
-             * @param padding_type 
-             * @param stride_y 
-             * @param stride_x 
-             * @param name 
+             * @param output_exponent exponent of output
+             * @param filter          filter of DepthwiseConv2D
+             * @param bias            bias of DepthwiseConv2D, if you don't specify anything, no bias is added
+             * @param activation      activation of DepthwiseConv2D, if you don't specify anything, no activation is applied
+             * @param padding_type    one of PADDING_VALID or PADDING_SAME or PADDING_SAME_MXNET,
+             *                        - PADDING_VALID means no padding
+             *                        PADDING_SAME and PADDING_SAME_MXNET results in padding with zeros evenly to the left/right or up/down of the input 
+             *                        such that output has the same height/width dimension as the input
+             *                        - PADDING_SAME results padding in TensorFlow style
+             *                        - PADDING_SAME_MXNET results padding in MXNET style
+             * @param stride_y        - stride in height
+             * @param stride_x        - stride in width
+             * @param name            name of layer
              */
             DepthwiseConv2D(const int output_exponent,
                             const Filter<feature_t> *filter,
@@ -58,44 +65,45 @@ namespace dl
             }
 
             /**
-             * @brief Destroy the Depthwise Conv2D object.
+             * @brief Destroy the DepthwiseConv2D object.
              * 
              */
             ~DepthwiseConv2D() {}
 
             /**
-             * @brief update output shape and padding.
+             * @brief Update output shape and padding.
              * 
-             * @param input 
+             * @param input as an input
              */
             void build(Tensor<feature_t> &input)
             {
                 assert(input.shape[0] > 0);
                 assert(input.shape[1] > 0);
 
-                std::vector<int> output_shape = nn::get_output_shape(input.shape, this->filter->shape_with_dilation, this->stride_y, this->stride_x, this->padding_type, true);
+                std::vector<int> output_shape = nn::get_output_shape(input.shape, this->filter->shape_with_dilation, this->stride_y, this->stride_x, this->padding_type);
                 this->output.set_shape(output_shape);
 
                 this->padding = nn::get_pad_size(output_shape, input.shape, this->filter->shape_with_dilation, this->stride_y, this->stride_x, this->padding_type);
-                input.set_padding(this->padding);
+                input.set_padding_size(this->padding);
             }
 
             /**
-             * @brief calloc output's element if not calloc yet. Call depthwise_conv2d.
+             * @brief Call DepthwiseConv2D operation.
              * 
-             * @param input 
-             * @param autoload_enable true: autoload input and output from PSRAM to CACHE. false: do not. 
-             * @return Tensor<feature_t>& 
+             * @param input           as an input
+             * @param autoload_enable one of true or false,
+             *                        - true: load input and output from PSRAM to CACHE automatically
+             *                        - false: do not 
+             * @param assign_core     not effective yet
+             * @return DepthwiseConv2D result
              */
-            Tensor<feature_t> &call(Tensor<feature_t> &input,
-                                    bool autoload_enable = false,
-                                    const std::vector<int> &assign_core = CONFIG_DEFAULT_ASSIGN_CORE)
+            Tensor<feature_t> &call(Tensor<feature_t> &input, bool autoload_enable = false, const std::vector<int> &assign_core = CONFIG_DEFAULT_ASSIGN_CORE)
             {
                 DL_LOG_LAYER_LATENCY_INIT();
 
                 DL_LOG_LAYER_LATENCY_START();
-                this->output.calloc_element();
-                DL_LOG_LAYER_LATENCY_END(this->name, "calloc");
+                this->output.apply_element();
+                DL_LOG_LAYER_LATENCY_END(this->name, "apply");
 
                 if (autoload_enable)
                 {
@@ -106,12 +114,13 @@ namespace dl
                 DL_LOG_LAYER_LATENCY_START();
                 nn::depthwise_conv2d(output, input, this->padding, *(this->filter), this->stride_y, this->stride_x, this->bias, this->activation, assign_core);
                 DL_LOG_LAYER_LATENCY_END(this->name, "depthwise_conv2d");
+               
                 return this->output;
             }
 
             /**
              * @brief Preload the filter to Cache. 
-             * 
+             * NOTE: Call this layer's preload() before previous layer's call() such that filter could be loaded while previous layer is calculating.
              */
             void preload()
             {

@@ -1,10 +1,14 @@
 #pragma once
 
+#include <climits>
 #include "sdkconfig.h"
 
-#define DL_LOG_NN_LATENCY 0     /*<! 1: print the latency of each parts of nn. 0: mute */
-#define DL_LOG_LAYER_LATENCY 0  /*<! 1: print the latency of each parts of layer. 0: mute */
-#define DL_LOG_DETECT_LATENCY 0 /*<! 1: print the latency of each parts of detect. 0: mute */
+#define DL_LOG_LATENCY_UNIT 0  /*<! - 1: cycle */
+                               /*<! - 0: us */
+#define DL_LOG_NN_LATENCY 0    /*<! - 1: print the latency of each parts of nn */
+                               /*<! - 0: mute */
+#define DL_LOG_LAYER_LATENCY 0 /*<! - 1: print the latency of each parts of layer */
+                               /*<! - 0: mute */
 
 #if CONFIG_SPIRAM_SUPPORT || CONFIG_ESP32_SPIRAM_SUPPORT || CONFIG_ESP32S3_SPIRAM_SUPPORT
 #define DL_SPIRAM_SUPPORT 1
@@ -79,7 +83,7 @@ namespace dl
 
     typedef enum
     {
-        PADDING_VALID,     /*<! VALID >*/
+        PADDING_VALID,     /*<! no padding >*/
         PADDING_SAME,      /*<! SAME in TensorFlow style >*/
         PADDING_SAME_MXNET /*<! SAME in MXNET style >*/
     } padding_type_t;

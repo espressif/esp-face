@@ -1,23 +1,22 @@
 #pragma once
 
-#include <assert.h>
 #include <vector>
-#include "dl_constant.hpp"
 #include "dl_variable.hpp"
-#include "dl_tool.hpp"
 
 namespace dl
 {
     namespace nn
     {
         /**
-         * @brief Concat(input_1, input_2, ...)
+         * @brief concat2d(input_1, input_2, ...)
          * 
-         * @tparam T 
-         * @param output 
-         * @param features 
+         * @tparam feature_t supports int16_t and int8_t,
+         *         - int16_t: stands for operation in int16_t quantize
+         *         - int8_t: stands for operation in int8_t quantize
+         * @param output as an output
+         * @param inputs a bundle of inputs to be concatenated
          */
-        template <typename T>
-        void concat2d(Tensor<T> &output, std::vector<Tensor<T>> features);
+        template <typename feature_t>
+        void concat2d(Tensor<feature_t> &output, std::vector<Tensor<feature_t>> inputs);
     } // namespace nn
 } // namespace dl

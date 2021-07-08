@@ -17,11 +17,11 @@ namespace dl
         } resize_type_t;
 
         /**
-         * @brief Convert RGB565 pixel to RGB888
+         * @brief Convert RGB565 pixel to RGB888.
          * 
-         * @tparam T 
-         * @param input     Pixel value in RGB565
-         * @param output    Pixel value in RGB888
+         * @tparam T supports all integer types
+         * @param input  pixel value in RGB565
+         * @param output pixel value in RGB888
          */
         template <typename T>
         inline void convert_pixel_rgb565_to_rgb888(uint16_t input, T *output)
@@ -31,6 +31,14 @@ namespace dl
             output[2] = input & 0xF8;                                    // red
         }
 
+        /**
+         * @brief Convert RGB to Gray.
+         * 
+         * @param red   red value
+         * @param green green value
+         * @param blue  blue value
+         * @return gray value
+         */
         inline int convert_pixel_rgb_to_gray(int red, int green, int blue)
         {
             int temp = (red * 38 + green * 75 + blue * 15) >> 7;
@@ -38,7 +46,7 @@ namespace dl
         }
 
         /**
-         * @brief Crop a patch from image and resize this patch.
+         * @brief Crop a patch from image and resize and store to destination image.
          * If the cropping box is out of image, destination image will be padded with edge.
          * 
          * The outer rectangle is the entire output image.
@@ -55,15 +63,15 @@ namespace dl
          *              |        |___________________________|(x_end, y_end) | 
          *              |____________________________________________________| 
          * 
-         * @tparam T 
-         * @param dst_image     destination image
+         * @tparam T suppot all integer types
+         * @param dst_image     pointer of destination(output) image
          * @param dst_width     destination image width
          * @param dst_channel   destination image channel number
          * @param dst_y_start   start y of resized image in destination image
          * @param dst_y_end     end y of resized image in destination image
          * @param dst_x_start   start x of resized image in destination image
          * @param dst_x_end     end x of resized image in destination image
-         * @param src_image     source image
+         * @param src_image     pointer of source image
          * @param src_height    source image height
          * @param src_width     source image width
          * @param src_channel   source image channel
@@ -71,8 +79,8 @@ namespace dl
          * @param src_y_end     end y of resized image in source image
          * @param src_x_start   start x of resized image in source image
          * @param src_x_end     end x of resized image in source image
-         * @param resize_type   resize type
-         * @param shift_left    bit left shift number
+         * @param resize_type   one of IMAGE_RESIZE_BILINEAR or IMAGE_RESIZE_MEAN or IMAGE_RESIZE_NEAREST
+         * @param shift_left    bit left shift number implemented on output
          */
         template <typename T>
         void crop_and_resize(T *dst_image,
@@ -90,7 +98,7 @@ namespace dl
                              int shift_left = 0);
 
         /**
-         * @brief Crop a patch from image and resize this patch.
+         * @brief Crop a patch from image and resize and store to destination image.
          * If the cropping box is out of image, destination image will be padded with edge.
          * 
          * The outer rectangle is the entire output image.
@@ -107,15 +115,15 @@ namespace dl
          *              |        |___________________________|(x_end, y_end) | 
          *              |____________________________________________________| 
          * 
-         * @tparam T 
-         * @param dst_image     destination image
+         * @tparam T suppot all integer types
+         * @param dst_image     pointer of destination(output) image
          * @param dst_width     destination image width
          * @param dst_channel   destination image channel number
          * @param dst_y_start   start y of resized image in destination image
          * @param dst_y_end     end y of resized image in destination image
          * @param dst_x_start   start x of resized image in destination image
          * @param dst_x_end     end x of resized image in destination image
-         * @param src_image     source image
+         * @param src_image     pointer of source image
          * @param src_height    source image height
          * @param src_width     source image width
          * @param src_channel   source image channel
@@ -123,8 +131,8 @@ namespace dl
          * @param src_y_end     end y of resized image in source image
          * @param src_x_start   start x of resized image in source image
          * @param src_x_end     end x of resized image in source image
-         * @param resize_type   resize type
-         * @param shift_left    bit left shift number
+         * @param resize_type   one of IMAGE_RESIZE_BILINEAR or IMAGE_RESIZE_MEAN or IMAGE_RESIZE_NEAREST
+         * @param shift_left    bit left shift number implemented on output
          */
         template <typename T>
         void crop_and_resize(T *dst_image,
@@ -142,29 +150,29 @@ namespace dl
                              int shift_left = 0);
 
         /**
-         * @brief Draw a rectangle on RGB565 image
+         * @brief Draw a rectangle on RGB565 image.
          * 
-         * @param src_image image 
+         * @param src_image as an RGB565 image
          * @param x1        left-up corner x
          * @param y1        left-up corner y
          * @param x2        right-bottom corner x
          * @param y2        right-bottom corner y
-         * @param height    image height
-         * @param width     image width
-         * @param color     rectangle color
+         * @param height    as an image height
+         * @param width     as an image width
+         * @param color     color value in RGB565
          */
         void draw_rectangle(uint16_t *src_image, int x1, int y1, int x2, int y2, int height, int width, uint16_t color);
 
         /**
-         * @brief Draw a point on RGB565 image
+         * @brief Draw a point on RGB565 image.
          * 
-         * @param src_image image
+         * @param src_image as an RGB565 image
          * @param x         point x
          * @param y         point y
-         * @param height    image height
-         * @param width     image width
-         * @param color     point color
-         * @param size      point size
+         * @param height    as an image height
+         * @param width     as an image width
+         * @param color     color value in RGB565
+         * @param size      point radius
          */
         void draw_point(uint16_t *src_image, int x, int y, int height, int width, uint16_t color, int size);
     } // namespace image

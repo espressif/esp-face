@@ -6,50 +6,91 @@
 namespace dl
 {
     /**
-     * @brief 
+     * @brief Base class of Filter, Bias, Activation.
      * 
-     * @tparam T 
+     * @tparam T supports int16_t and int8_t,
+     *         - int16_t: stands for operation in int16_t quantize,
+     *         - int8_t: stands for operation in int8_t quantize.
      */
     template <typename T>
     class Constant
     {
     public:
-        const T *element;             /*<! The element of element */
-        const int exponent;           /*<! The exponent of element */
-        const std::vector<int> shape; /*<! The shape of element */
+        const T *element;             /*<! point to element. >*/
+        const int exponent;           /*<! exponent of element. >*/
+        const std::vector<int> shape; /*<! shape of element. >*/
 
+        /**
+         * @brief Construct a new Constant object.
+         * 
+         * @param element  point to element.
+         * @param exponent exponent of element.
+         * @param shape    shape of Constant.
+         */
         Constant(const T *element, const int exponent, const std::vector<int> shape);
     };
 
     /**
-     * @brief 
-     * NOTE: The shape format of filter is fixed, but the element sequence depands on optimization.
-     * For 1D: reserved
-     * For 2D: shape format is [filter_height, filter_width, input_channel, output_channel]. dilation format is [height, width]
+     * @brief Filter.
+     * NOTE: The shape format of filter is fixed, but the element sequence depands on optimization method.
+     *       - 1D: reserved
+     *       - 2D: shape format is [filter_height, filter_width, input_channel, output_channel]. dilation format is [height, width]
      *  
-     * @tparam T 
+     * @tparam T supports int16_t and int8_t,
+     *         - int16_t: stands for operation in int16_t quantize,
+     *         - int8_t: stands for operation in int8_t quantize.
      */
     template <typename T>
     class Filter : public Constant<T>
     {
     public:
-        const std::vector<int> dilation;
-        std::vector<int> shape_with_dilation;
+        const std::vector<int> dilation;      /*<! - 1D: reserved >*/
+                                              /*<! - 2D: [dilation_in_height, dilation_in_width] >*/
+        std::vector<int> shape_with_dilation; /*<! - 1D: reserved >*/
+                                              /*<! - 2D: [filter_height_with_dilation, filter_width_with_dilation, input_channel, output_channel] >*/
+        std::vector<int> channel_exponent;    /*<! exponent for per-channel >*/
+
+        /**
+         * @brief Construct a new Filter object.
+         * 
+         * @param element  point to element
+         * @param exponent exponent of element
+         * @param shape    shape of Filter,
+         *                 - 1D: reserved
+         *                 - 2D: [filter_height, filter_width, input_channel, output_channel]
+         * @param dilation dilation of Filter
+         *                 - 1D: reserved
+         *                 - 2D: [dilation_in_height, dilation_in_width]
+         */
         Filter(const T *element, const int exponent, const std::vector<int> shape, const std::vector<int> dilation = {1, 1});
 
         /**
-         * @brief Print the n-th filter
+         * @brief Construct a new Filter object.
          * 
-         * @param n 
-         * @param message 
+         * @param element          point to element
+         * @param channel_exponent exponent for per-channel
+         * @param shape            shape of element
+         * @param dilation         dilation of Filter
+         *                         - 1D: reserved
+         *                         - 2D: [dilation_in_height, dilation_in_width]
+         */
+        Filter(const T *element, const std::vector<int> channel_exponent, const std::vector<int> shape, const std::vector<int> dilation = {1, 1});
+
+        /**
+         * @brief Print the n-th filter.
+         * 
+         * @param n       index of output_channel
+         * @param message to print
          */
         void print2d_n(const int n, const char *message) const;
     };
 
     /**
-     * @brief 
+     * @brief Bias.
      * 
-     * @tparam T 
+     * @tparam T supports int16_t and int8_t
+     *         - int16_t: stands for operation in int16_t quantize
+     *         - int8_t: stands for operation in int8_t quantize
      */
     template <typename T>
     class Bias : public Constant<T>
@@ -59,21 +100,23 @@ namespace dl
     };
 
     /**
-     * @brief
+     * @brief Activation.
      * 
-     * @tparam T 
+     * @tparam T supports int16_t and int8_t
+     *         - int16_t: stands for operation in int16_t quantize
+     *         - int8_t: stands for operation in int8_t quantize
      */
     template <typename T>
     class Activation : public Constant<T>
     {
     public:
-        const activation_type_t type; /*<! The type of activation */
+        const activation_type_t type; /*<! One of Linear or ReLU or LeakyReLU or PReLU */
 
         /**
-         * @brief Construct a new Activation object
+         * @brief Construct a new Activation object.
          * 
-         * @param type      Linear, ReLU, LeakyReLU, PReLU
-         * @param element   element of activation
+         * @param type      One of Linear or ReLU or LeakyReLU or PReLU
+         * @param element   point to element of activation
          * @param exponent  exponent of element
          * @param shape     shape of element
          */

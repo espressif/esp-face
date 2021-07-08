@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include "dl_variable.hpp"
-#include "dl_tool_isa.hpp"
 
 #include "esp_system.h"
 #include "esp_timer.h"
@@ -14,21 +13,72 @@
 #include "freertos/FreeRTOS.h"
 #endif
 
+extern "C"
+{
+#if CONFIG_TIE728_BOOST
+    void dl_tie728_memset_8b(void *ptr, const int value, const int n);
+    void dl_tie728_memset_16b(void *ptr, const int value, const int n);
+    void dl_tie728_memset_32b(void *ptr, const int value, const int n);
+#endif
+}
+
 namespace dl
 {
     namespace tool
     {
         /**
-         * @brief Allocate a zero-initialized space. Must use 'dl_lib_free' to free the memory.
+         * @brief Set memory zero.
          * 
-         * @param cnt  Count of units.
-         * @param size Size of unit.
-         * @param align Align of memory. If not required, set 0.
-         * @return void* Pointer of allocated memory. Null for failed.
+         * @param ptr pointer of memory
+         * @param n   byte number
          */
-        inline void *calloc_aligned(int cnt, int size, int align = 0)
+        void set_zero(void *ptr, const int n);
+
+        /**
+         * @brief Set array value.
+         * 
+         * @tparam T supports all data type, sizeof(T) equals to 1, 2 and 4 will boost by instruction 
+         * @param ptr   pointer of array
+         * @param value value to set
+         * @param len   length of array
+         */
+        template <typename T>
+        void set_value(T *ptr, const T value, const int len)
         {
-            int n = cnt * size;
+#if CONFIG_TIE728_BOOST
+            int *temp = (int *)&value;
+            if (sizeof(T) == 1)
+                dl_tie728_memset_8b(ptr, *temp, len);
+            else if (sizeof(T) == 2)
+                dl_tie728_memset_16b(ptr, *temp, len);
+            else if (sizeof(T) == 4)
+                dl_tie728_memset_32b(ptr, *temp, len);
+            else
+#endif
+                for (size_t i = 0; i < len; i++)
+                    ptr[i] = value;
+        }
+
+        /**
+         * @brief Copy memory.
+         * 
+         * @param dst pointer of destination
+         * @param src pointer of source
+         * @param n   byte number
+         */
+        void copy_memory(void *dst, void *src, const int n);
+
+        /**
+         * @brief Apply memory with zero-initialized. Must use dl_lib_free() to free the memory.
+         * 
+         * @param number number of elements
+         * @param size   size of element
+         * @param align  number of aligned, e.g., 16 means 16-byte aligned
+         * @return pointer of allocated memory. NULL for failed
+         */
+        inline void *calloc_aligned(int number, int size, int align = 0)
+        {
+            int n = number * size;
             n >>= 4;
             n += 2;
             n <<= 4;
@@ -44,10 +94,10 @@ namespace dl
 
             if (NULL == res)
             {
-                printf("Item psram alloc failed. Size: %d = %d x %d + %d + %d\n", total_size, cnt, size, align, sizeof(void *));
+                printf("Item psram alloc failed. Size: %d = %d x %d + %d + %d\n", total_size, number, size, align, sizeof(void *));
                 printf("Available: %d\n", heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
 #else
-                printf("Item alloc failed. Size: %d = %d x %d + %d + %d, SPIRAM_FLAG: %d\n", total_size, cnt, size, align, sizeof(void *), DL_SPIRAM_SUPPORT);
+                printf("Item alloc failed. Size: %d = %d x %d + %d + %d, SPIRAM_FLAG: %d\n", total_size, number, size, align, sizeof(void *), DL_SPIRAM_SUPPORT);
 #endif
                 return NULL;
             }
@@ -60,41 +110,34 @@ namespace dl
 
             aligned[-1] = res;
 
-#if CONFIG_TIE728_BOOST
-            dl_tie728_bzero_128b(aligned, n);
-#else
-            bzero(aligned, n);
-#endif
+            set_zero(aligned, n);
 
-            // printf("RAM size: %dKB\n", heap_caps_get_free_size(MALLOC_CAP_8BIT) / 1024);
             return (void *)aligned;
         }
 
         /**
-         * @brief Allocate a un-initialized space. Must use 'free_aligned' to free the memory.
+         * @brief Apply memory without initialized. Must use free_aligned() to free the memory.
          * 
-         * @param cnt  Count of units.
-         * @param size Size of unit.
-         * @param align Align of memory. If not required, set 0.
-         * @return void* Pointer of allocated memory. Null for failed.
+         * @param number number of elements
+         * @param size   size of element
+         * @param align  number of aligned, e.g., 16 means 16-byte aligned
+         * @return pointer of allocated memory. NULL for failed
          */
-        inline void *malloc_aligned(int cnt, int size, int align = 0)
+        inline void *malloc_aligned(int number, int size, int align = 0)
         {
-            int total_size = cnt * size + align + sizeof(void *);
+            int total_size = number * size + align + sizeof(void *);
             void *res = malloc(total_size);
             if (NULL == res)
             {
 #if DL_SPIRAM_SUPPORT
-                //printf("Size need: %d, left: %d\n", total_size, heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL));
-                //heap_caps_print_heap_info(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
                 res = heap_caps_malloc(total_size, MALLOC_CAP_SPIRAM);
             }
             if (NULL == res)
             {
-                printf("Item psram alloc failed. Size: %d = %d x %d + %d + %d\n", total_size, cnt, size, align, sizeof(void *));
+                printf("Item psram alloc failed. Size: %d = %d x %d + %d + %d\n", total_size, number, size, align, sizeof(void *));
                 printf("Available: %d\n", heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
 #else
-                printf("Item alloc failed. Size: %d = %d x %d + %d + %d, SPIRAM_FLAG: %d\n", total_size, cnt, size, align, sizeof(void *), DL_SPIRAM_SUPPORT);
+                printf("Item alloc failed. Size: %d = %d x %d + %d + %d, SPIRAM_FLAG: %d\n", total_size, number, size, align, sizeof(void *), DL_SPIRAM_SUPPORT);
 #endif
                 return NULL;
             }
@@ -107,14 +150,13 @@ namespace dl
 
             aligned[-1] = res;
 
-            // printf("RAM size: %dKB\n", heap_caps_get_free_size(MALLOC_CAP_8BIT) / 1024);
             return (void *)aligned;
         }
 
         /**
-         * @brief free the calloc_aligned() and malloc_aligned() memory
+         * @brief Free the calloc_aligned() and malloc_aligned() memory
          * 
-         * @param address 
+         * @param address pointer of memory to free
          */
         inline void free_aligned(void *address)
         {
@@ -125,28 +167,14 @@ namespace dl
         }
 
         /**
-         * @brief truncate the input into range
+         * @brief Truncate the input into int8_t range.
          * 
-         * @param output 
-         * @param input 
+         * @tparam T supports all integer types
+         * @param output as an output
+         * @param input  as an input
          */
-        inline void truncate(int16_t &output, int input)
-        {
-            if (input >= DL_Q16_MAX)
-                output = DL_Q16_MAX;
-            else if (input <= DL_Q16_MIN)
-                output = DL_Q16_MIN;
-            else
-                output = input;
-        }
-
-        /**
-         * @brief truncate the input into range
-         * 
-         * @param output 
-         * @param input 
-         */
-        inline void truncate(int8_t &output, int input)
+        template <typename T>
+        void truncate(int8_t &output, T input)
         {
             if (input >= DL_Q8_MAX)
                 output = DL_Q8_MAX;
@@ -157,12 +185,14 @@ namespace dl
         }
 
         /**
-         * @brief truncate the input into range
+         * @brief Truncate the input into int16_t range.
          * 
-         * @param output 
-         * @param input 
+         * @tparam T supports all integer types
+         * @param output as an output
+         * @param input  as an input
          */
-        inline void truncate(int16_t &output, int64_t input)
+        template <typename T>
+        void truncate(int16_t &output, T input)
         {
             if (input >= DL_Q16_MAX)
                 output = DL_Q16_MAX;
@@ -173,25 +203,9 @@ namespace dl
         }
 
         /**
-         * @brief truncate the input into range
+         * @brief Print vector in format "[x1, x2, ...]\n".
          * 
-         * @param output 
-         * @param input 
-         */
-        inline void truncate(int8_t &output, int64_t input)
-        {
-            if (input >= DL_Q8_MAX)
-                output = DL_Q8_MAX;
-            else if (input <= DL_Q8_MIN)
-                output = DL_Q8_MIN;
-            else
-                output = input;
-        }
-
-        /**
-         * @brief print vector
-         * 
-         * @param array 
+         * @param array to print
          */
         inline void print_vector(std::vector<int> &array, const char *message = NULL)
         {
@@ -207,164 +221,103 @@ namespace dl
         }
 
         /**
-         * @brief check whether two feature are same
+         * @brief Get the cycle object
          * 
-         * @tparam T 
-         * @param a 
-         * @param b 
-         * @return true 
-         * @return false 
+         * @return cycle count
          */
-        template <typename T>
-        bool equal(Tensor<T> &a, Tensor<T> &b)
+        inline uint32_t get_cycle()
         {
-            if (a.exponent != b.exponent)
-            {
-                printf("Exponent: %d v.s. %d\n", a.exponent, b.exponent);
-                return false;
-            }
-
-            if (a.shape.size() != b.shape.size())
-            {
-                printf("Dimension: %d v.s. %d\n", (int)a.shape.size(), (int)b.shape.size());
-                return false;
-            }
-
-            bool failed = false;
-            for (int i = 0; i < a.shape.size(); i++)
-            {
-                if (a.shape[i] != b.shape[i])
-                {
-                    failed = true;
-                    break;
-                }
-            }
-            if (failed)
-            {
-                printf("Shape: ");
-
-                for (int i = 0; i < a.shape.size(); i++)
-                    printf("%d, ", a.shape[i]);
-
-                printf("v.s. ");
-
-                for (int i = 0; i < b.shape.size(); i++)
-                    printf("%d, ", b.shape[i]);
-
-                printf("\n");
-
-                return false;
-            }
-
-            for (int y = 0; y < a.shape[0]; y++)
-            {
-                for (int x = 0; x < a.shape[1]; x++)
-                {
-                    for (int c = 0; c < a.shape[2]; c++)
-                    {
-                        int a_i = a.get_element_value({y, x, c});
-                        int b_i = b.get_element_value({y, x, c});
-                        int offset = DL_ABS(a_i - b_i);
-                        if (offset > 2) // rounding mode is different between ESP32 and Python
-                        {
-                            printf("element[%d, %d, %d]: %d v.s. %d\n", y, x, c, a_i, b_i);
-                            return false;
-                        }
-                    }
-                }
-            }
-
-            return true;
+            uint32_t ccount;
+            __asm__ __volatile__("rsr %0, ccount"
+                                 : "=a"(ccount)
+                                 :
+                                 : "memory");
+            return ccount;
         }
 
         class Latency
         {
         private:
-            int64_t __start;
-            int64_t __end;
+            uint32_t __start; /*<! record the start >*/
+            uint32_t __end;   /*<! record the end >*/
 
         public:
+            /**
+             * @brief Record the start time.
+             * 
+             */
             void start()
             {
+#if DL_LOG_LATENCY_UNIT
+                this->__start = get_cycle();
+#else
                 this->__start = esp_timer_get_time();
-                // RSR(CCOUNT, this->__start);
+#endif
             }
 
+            /**
+             * @brief Record the end time.
+             * 
+             */
             void end()
             {
+#if DL_LOG_LATENCY_UNIT
+                this->__end = get_cycle();
+#else
                 this->__end = esp_timer_get_time();
-                // RSR(CCOUNT, this->__end);
+#endif
             }
 
+            /**
+             * @brief Return the period.
+             * 
+             * @return this->__end - this->__start
+             */
             int period()
             {
                 return (int)(this->__end - this->__start);
             }
 
+            /**
+             * @brief Print in format "latency: {this->period} {unit}\n".
+             */
             void print()
             {
-                printf("latency: %15d us\n", this->period());
+#if DL_LOG_LATENCY_UNIT
+                printf("latency: %15u cycle\n", this->period());
+#else
+                printf("latency: %15u us\n", this->period());
+#endif
             }
 
+            /**
+             * @brief Print in format "{message}: {this->period} {unit}\n".
+             * 
+             * @param message message of print
+             */
             void print(const char *message)
             {
-                printf("%s: %15d us\n", message, this->period());
+#if DL_LOG_LATENCY_UNIT
+                printf("%s: %15u cycle\n", message, this->period());
+#else
+                printf("%s: %15u us\n", message, this->period());
+#endif
             }
 
+            /**
+             * @brief Print in format "{prefix}::{key}: {this->period} {unit}\n".
+             * 
+             * @param prefix prefix of print
+             * @param key    key of print
+             */
             void print(const char *prefix, const char *key)
             {
-                printf("%s::%s: %d us\n", prefix, key, this->period());
+#if DL_LOG_LATENCY_UNIT
+                printf("%s::%s: %u cycle\n", prefix, key, this->period());
+#else
+                printf("%s::%s: %u us\n", prefix, key, this->period());
+#endif
             }
         };
-
-        /**
-         * @brief           Init preload. call this function to turn on or turn off the preload.  
-         * 
-         * @param preload   1: turn on the preload. 0: turn off the preload.
-         * @return int8_t 
-         *                  1: Init sucessfully.
-         *                  0: Init suceesfully, autoload has been turned off.
-         *                  -1: Init failed, the chip does not support preload.
-         */
-        int8_t preload_init(uint8_t preload = 1);
-
-        /**
-         * @brief           Call preload.
-         * 
-         * @param addr      The start address of data to be preloaded.
-         * @param size      The size(btyes) of the data to be preloaded.
-         */
-        void preload_func(uint32_t addr, uint32_t size);
-
-        /**
-         * @brief           Init autoload. call this function to turn on or turn off the autoload.  
-         * 
-         * @param autoload  1: turn on the autoload. 0: turn off the autoload.
-         * @param trigger   0: miss. 1: hit. 2: both
-         * @param linesize  the number of cache lines to be autoloaded.
-         * @return int8_t  
-         *                  1: Init sucessfully.
-         *                  0: Init suceesfully, preload has been turned off.
-         *                  -1: Init failed, the chip does not support autoload.
-         */
-        int8_t autoload_init(uint8_t autoload = 1, uint8_t trigger = 2, uint8_t linesize = 0);
-
-        /**
-         * @brief           Call autoload.           
-         * 
-         * @param addr1     The start address of data1 to be autoloaded.
-         * @param size1     The size(btyes) of the data1 to be preloaded.
-         * @param addr2     The start address of data2 to be autoloaded.
-         * @param size2     The size(btyes) of the data2 to be preloaded.
-         */
-        void autoload_func(uint32_t addr1, uint32_t size1, uint32_t addr2, uint32_t size2);
-
-        /**
-         * @brief           Call autoload. 
-         * 
-         * @param addr1     The start address of data1 to be autoloaded.
-         * @param size1     The size(btyes) of the data1 to be preloaded.
-         */
-        void autoload_func(uint32_t addr1, uint32_t size1);
     } // namespace tool
 } // namespace dl

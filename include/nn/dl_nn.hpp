@@ -10,34 +10,47 @@ namespace dl
         /**
          * @brief Get the output shape object
          * 
-         * @param input_shape       input shape
-         * @param filter_shape      filter shape
-         * @param stride_y          y stride
-         * @param stride_x          x stride
-         * @param pad_type          padding type
-         * @param depthwise         true: depthwise conv2d false: conv2d
-         * @return std::vector<int> output shape 
+         * @param input_shape  input shape
+         * @param filter_shape filter shape with dilation
+         * @param stride_y     stride in height
+         * @param stride_x     stride in width
+         * @param pad_type     one of PADDING_VALID or PADDING_SAME or PADDING_SAME_MXNET
+         * @param is_conv2d    one of true or false,
+         *                     - true: serve for Conv2D
+         *                     - false: serve for other operations
+         * @return std::vector<int> 
          */
-        std::vector<int> get_output_shape(const std::vector<int> &input_shape, const std::vector<int> &filter_shape, const int stride_y, const int stride_x, const padding_type_t pad_type, const bool depthwise);
+        std::vector<int> get_output_shape(const std::vector<int> &input_shape, const std::vector<int> &filter_shape, const int stride_y, const int stride_x, const padding_type_t pad_type, const bool is_conv2d = false);
 
         /**
          * @brief Get the pad size object
          * 
-         * @param output_shape      output shape
-         * @param input_shape       input shape
-         * @param filter_shape      filter shape
-         * @param stride_y          y stride
-         * @param stride_x          x stride
-         * @param pad_type          padding type
-         * @return std::vector<int> padding size
+         * @param output_shape output shape
+         * @param input_shape  input shape
+         * @param filter_shape filter shape with dilation
+         * @param stride_y     stride in height
+         * @param stride_x     stride in width
+         * @param padding_type one of PADDING_VALID or PADDING_SAME or PADDING_SAME_MXNET
+         * @return padding size
          */
-        std::vector<int> get_pad_size(const std::vector<int> &output_shape, const std::vector<int> &input_shape, const std::vector<int> &filter_shape, const int stride_y, const int stride_x, const padding_type_t pad_type);
+        std::vector<int> get_pad_size(const std::vector<int> &output_shape, const std::vector<int> &input_shape, const std::vector<int> &filter_shape, const int stride_y, const int stride_x, const padding_type_t padding_type);
     } // namespace nn
 } // namespace dl
 
 #if DL_LOG_NN_LATENCY
+/**
+ * @brief Initialize.
+ */
 #define DL_LOG_NN_LATENCY_INIT() dl::tool::Latency latency
+
+/**
+ * @brief Time starts.
+ */
 #define DL_LOG_NN_LATENCY_START() latency.start()
+
+/**
+ * @brief Time ends and printed.
+ */
 #define DL_LOG_NN_LATENCY_END(key) \
     latency.end();                 \
     latency.print("nn", key)
