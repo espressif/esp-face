@@ -27,8 +27,8 @@ register_component()
 
 target_link_libraries(${COMPONENT_TARGET}   INTERFACE   ${links})
 
-set(lib     libcat_face_detector.a
-            libhuman_face_detector.a
+set(lib     libcat_face_detect.a
+            libhuman_face_detect.a
             libdl.a)
 target_link_libraries(${COMPONENT_TARGET}   INTERFACE   ${lib})
 
