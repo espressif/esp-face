@@ -4,14 +4,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "dl_variable.hpp"
 
 #include "esp_system.h"
 #include "esp_timer.h"
-
-#if DL_SPIRAM_SUPPORT
 #include "freertos/FreeRTOS.h"
-#endif
+
+#include "dl_define.hpp"
 
 extern "C"
 {
@@ -69,53 +67,6 @@ namespace dl
         void copy_memory(void *dst, void *src, const int n);
 
         /**
-         * @brief Apply memory with zero-initialized. Must use dl_lib_free() to free the memory.
-         * 
-         * @param number number of elements
-         * @param size   size of element
-         * @param align  number of aligned, e.g., 16 means 16-byte aligned
-         * @return pointer of allocated memory. NULL for failed
-         */
-        inline void *calloc_aligned(int number, int size, int align = 0)
-        {
-            int n = number * size;
-            n >>= 4;
-            n += 2;
-            n <<= 4;
-            int total_size = n + align + sizeof(void *);
-            void *res = malloc(total_size);
-            if (NULL == res)
-            {
-#if DL_SPIRAM_SUPPORT
-                // printf("Size need: %d, left: %d\n", total_size, heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL));
-                // heap_caps_print_heap_info(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
-                res = heap_caps_malloc(total_size, MALLOC_CAP_SPIRAM);
-            }
-
-            if (NULL == res)
-            {
-                printf("Item psram alloc failed. Size: %d = %d x %d + %d + %d\n", total_size, number, size, align, sizeof(void *));
-                printf("Available: %d\n", heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
-#else
-                printf("Item alloc failed. Size: %d = %d x %d + %d + %d, SPIRAM_FLAG: %d\n", total_size, number, size, align, sizeof(void *), DL_SPIRAM_SUPPORT);
-#endif
-                return NULL;
-            }
-            void **data = (void **)res + 1;
-            void **aligned;
-            if (align)
-                aligned = (void **)(((size_t)data + (align - 1)) & -align);
-            else
-                aligned = data;
-
-            aligned[-1] = res;
-
-            set_zero(aligned, n);
-
-            return (void *)aligned;
-        }
-
-        /**
          * @brief Apply memory without initialized. Must use free_aligned() to free the memory.
          * 
          * @param number number of elements
@@ -125,23 +76,26 @@ namespace dl
          */
         inline void *malloc_aligned(int number, int size, int align = 0)
         {
-            int total_size = number * size + align + sizeof(void *);
+            int n = number * size;
+            n >>= 4;
+            n += 2;
+            n <<= 4;
+            int total_size = n + align + sizeof(void *) + sizeof(int);
             void *res = malloc(total_size);
-            if (NULL == res)
-            {
 #if DL_SPIRAM_SUPPORT
+            if (NULL == res)
                 res = heap_caps_malloc(total_size, MALLOC_CAP_SPIRAM);
-            }
+#endif
             if (NULL == res)
             {
-                printf("Item psram alloc failed. Size: %d = %d x %d + %d + %d\n", total_size, number, size, align, sizeof(void *));
-                printf("Available: %d\n", heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
-#else
-                printf("Item alloc failed. Size: %d = %d x %d + %d + %d, SPIRAM_FLAG: %d\n", total_size, number, size, align, sizeof(void *), DL_SPIRAM_SUPPORT);
-#endif
+                printf("Fail to malloc %d bytes from DRAM(%d bytyes) and PSRAM(%d bytes), PSRAM is %s.\n",
+                       total_size,
+                       heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+                       heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
+                       DL_SPIRAM_SUPPORT ? "on" : "off");
                 return NULL;
             }
-            void **data = (void **)res + 1;
+            void **data = (void **)res + 2; // 4-byte for pointer, 4-bytes for n
             void **aligned;
             if (align)
                 aligned = (void **)(((size_t)data + (align - 1)) & -align);
@@ -149,6 +103,26 @@ namespace dl
                 aligned = data;
 
             aligned[-1] = res;
+            int *temp = (int *)aligned;
+            temp[-2] = n;
+
+            return (void *)aligned;
+        }
+
+        /**
+         * @brief Apply memory with zero-initialized. Must use dl_lib_free() to free the memory.
+         * 
+         * @param number number of elements
+         * @param size   size of element
+         * @param align  number of aligned, e.g., 16 means 16-byte aligned
+         * @return pointer of allocated memory. NULL for failed
+         */
+        inline void *calloc_aligned(int number, int size, int align = 0)
+        {
+
+            void *aligned = malloc_aligned(number, size, align);
+            int n = *((int *)aligned - 2);
+            set_zero(aligned, n);
 
             return (void *)aligned;
         }
@@ -238,44 +212,95 @@ namespace dl
         class Latency
         {
         private:
-            uint32_t __start; /*<! record the start >*/
-            uint32_t __end;   /*<! record the end >*/
+            const uint32_t size; /*<! size of queue */
+            uint32_t *queue;     /*<! queue for storing history period */
+            uint32_t period;     /*<! current period */
+            uint32_t sum;        /*<! sum of period */
+            uint32_t count;      /*<! the number of added period */
+            uint32_t next;       /*<! point to next element in queue */
+            uint32_t timestamp;  /*<! record the start >*/
 
         public:
             /**
-             * @brief Record the start time.
+             * @brief Construct a new Latency object.
+             * 
+             * @param size 
+             */
+            Latency(const uint32_t size = 1) : size(size),
+                                               period(0),
+                                               sum(0),
+                                               count(0),
+                                               next(0)
+            {
+                this->queue = (this->size > 1) ? (uint32_t *)calloc(this->size, sizeof(uint32_t)) : NULL;
+            }
+
+            /**
+             * @brief Destroy the Latency object.
+             * 
+             */
+            ~Latency()
+            {
+                if (this->queue)
+                    free(this->queue);
+            }
+
+            /**
+             * @brief Record the start timestamp.
              * 
              */
             void start()
             {
 #if DL_LOG_LATENCY_UNIT
-                this->__start = get_cycle();
+                this->timestamp = get_cycle();
 #else
-                this->__start = esp_timer_get_time();
+                this->timestamp = esp_timer_get_time();
 #endif
             }
 
             /**
-             * @brief Record the end time.
+             * @brief Record the period.
              * 
              */
             void end()
             {
 #if DL_LOG_LATENCY_UNIT
-                this->__end = get_cycle();
+                this->period = get_cycle() - this->timestamp;
 #else
-                this->__end = esp_timer_get_time();
+                this->period = esp_timer_get_time() - this->timestamp;
 #endif
+                if (this->queue)
+                {
+                    this->sum -= this->queue[this->next];
+                    this->queue[this->next] = this->period;
+                    this->sum += this->queue[this->next];
+                    this->next++;
+                    this->next = this->next % this->size;
+                    if (this->count < this->size)
+                    {
+                        this->count++;
+                    }
+                }
             }
 
             /**
              * @brief Return the period.
              * 
-             * @return this->__end - this->__start
+             * @return this->timestamp_end - this->timestamp
              */
-            int period()
+            uint32_t get_period()
             {
-                return (int)(this->__end - this->__start);
+                return this->period;
+            }
+
+            /**
+             * @brief Get the average period.
+             * 
+             * @return average latency 
+             */
+            uint32_t get_average_period()
+            {
+                return this->queue ? (this->sum / this->count) : this->period;
             }
 
             /**
@@ -284,9 +309,9 @@ namespace dl
             void print()
             {
 #if DL_LOG_LATENCY_UNIT
-                printf("latency: %15u cycle\n", this->period());
+                printf("latency: %15u cycle\n", this->get_average_period());
 #else
-                printf("latency: %15u us\n", this->period());
+                printf("latency: %15u us\n", this->get_average_period());
 #endif
             }
 
@@ -297,10 +322,10 @@ namespace dl
              */
             void print(const char *message)
             {
-#if DL_LOG_LATENCY_UNIT
-                printf("%s: %15u cycle\n", message, this->period());
+    #if DL_LOG_LATENCY_UNIT
+                printf("%s: %15u cycle\n", message, this->get_average_period());
 #else
-                printf("%s: %15u us\n", message, this->period());
+                printf("%s: %15u us\n", message, this->get_average_period());
 #endif
             }
 
@@ -313,9 +338,9 @@ namespace dl
             void print(const char *prefix, const char *key)
             {
 #if DL_LOG_LATENCY_UNIT
-                printf("%s::%s: %u cycle\n", prefix, key, this->period());
+                printf("%s::%s: %u cycle\n", prefix, key, this->get_average_period());
 #else
-                printf("%s::%s: %u us\n", prefix, key, this->period());
+                printf("%s::%s: %u us\n", prefix, key, this->get_average_period());
 #endif
             }
         };
