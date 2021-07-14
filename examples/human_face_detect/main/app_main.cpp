@@ -32,9 +32,9 @@ extern "C" void app_main(void)
 
 #if TWO_STAGE
         printf("    left eye: (%3d, %3d), ", prediction->keypoint[0], prediction->keypoint[1]);
-        printf("right eye: (%3d, %3d)\n", prediction->keypoint[2], prediction->keypoint[3]);
+        printf("right eye: (%3d, %3d)\n", prediction->keypoint[6], prediction->keypoint[7]);
         printf("    nose: (%3d, %3d)\n", prediction->keypoint[4], prediction->keypoint[5]);
-        printf("    mouth left: (%3d, %3d), ", prediction->keypoint[6], prediction->keypoint[7]);
+        printf("    mouth left: (%3d, %3d), ", prediction->keypoint[2], prediction->keypoint[3]);
         printf("mouth right: (%3d, %3d)\n\n", prediction->keypoint[8], prediction->keypoint[9]);
 #endif
     }
