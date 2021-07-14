@@ -150,30 +150,103 @@ namespace dl
                              int shift_left = 0);
 
         /**
-         * @brief Draw a rectangle on RGB565 image.
+         * @brief Draw a filled rectangle on RGB888 image.
          * 
-         * @param src_image as an RGB565 image
-         * @param x1        left-up corner x
-         * @param y1        left-up corner y
-         * @param x2        right-bottom corner x
-         * @param y2        right-bottom corner y
-         * @param height    as an image height
-         * @param width     as an image width
-         * @param color     color value in RGB565
+         * @param image        pointer of input image
+         * @param image_height height of input image
+         * @param image_width  width of input image
+         * @param x1           left up corner x
+         * @param y1           left up corner y
+         * @param x2           right bottom corner x
+         * @param y2           right bottom corner y
+         * @param color        0x    00|       00|       00|       00
+         *                     reserved|channel 0|channel 1|channel 2 
          */
-        void draw_rectangle(uint16_t *src_image, int x1, int y1, int x2, int y2, int height, int width, uint16_t color);
+        void draw_filled_rectangle(uint8_t *image, const uint32_t image_height, const uint32_t image_width,
+                                   uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2,
+                                   const uint32_t color = 0x00FF0000);
+
+        /**
+         * @brief Draw a filled rectangle on RGB565 image.
+         * 
+         * @param image        pointer of input image
+         * @param image_height height of input image
+         * @param image_width  width of input image
+         * @param x1           left up corner x
+         * @param y1           left up corner y
+         * @param x2           right bottom corner x
+         * @param y2           right bottom corner y
+         * @param color        0b  00000|   000000|    00000
+         *                     channel 0|channel 1|channel 2 
+         */
+        void draw_filled_rectangle(uint16_t *image, const uint32_t image_height, const uint32_t image_width,
+                                   uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2,
+                                   const uint16_t color = 0b1111100000000000);
+
+        /**
+         * @brief Draw a point on RGB888 image.
+         * 
+         * @param image        pointer of input image
+         * @param image_height height of input image
+         * @param image_width  width of input image
+         * @param x            point x
+         * @param y            point y
+         * @param size         size of point
+         * @param color        0x    00|       00|       00|       00
+         *                     reserved|channel 0|channel 1|channel 2 
+         */
+        void draw_point(uint8_t *image, const uint32_t image_height, const uint32_t image_width,
+                        const uint32_t x, const uint32_t y, const uint32_t size,
+                        const uint32_t color = 0x00FF0000);
 
         /**
          * @brief Draw a point on RGB565 image.
          * 
-         * @param src_image as an RGB565 image
-         * @param x         point x
-         * @param y         point y
-         * @param height    as an image height
-         * @param width     as an image width
-         * @param color     color value in RGB565
-         * @param size      point radius
+         * @param image        pointer of input image
+         * @param image_height height of input image
+         * @param image_width  width of input image
+         * @param x            point x
+         * @param y            point y
+         * @param size         size of point
+         * @param color        0b  00000|   000000|    00000
+         *                     channel 0|channel 1|channel 2 
          */
-        void draw_point(uint16_t *src_image, int x, int y, int height, int width, uint16_t color, int size);
+        void draw_point(uint16_t *image, const uint32_t image_height, const uint32_t image_width,
+                        const uint32_t x, const uint32_t y, const uint32_t size,
+                        uint16_t color = 0b1111100000000000);
+
+        /**
+         * @brief Draw a hollow rectangle on RGB888 image.
+         * 
+         * @param image        pointer of input image
+         * @param image_height height of input image
+         * @param image_width  width of input image
+         * @param x1           left up corner x
+         * @param y1           left up corner y
+         * @param x2           right bottom corner x
+         * @param y2           right bottom corner y
+         * @param color        0x    00|       00|       00|       00
+         *                     reserved|channel 0|channel 1|channel 2 
+         */
+        void draw_hollow_rectangle(uint8_t *image, const uint32_t image_height, const uint32_t image_width,
+                                   uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2,
+                                   uint32_t color = 0x00FF0000);
+
+        /**
+         * @brief Draw a hollow rectangle on RGB565 image.
+         * 
+         * @param image        pointer of input image
+         * @param image_height height of input image
+         * @param image_width  width of input image
+         * @param x1           left up corner x
+         * @param y1           left up corner y
+         * @param x2           right bottom corner x
+         * @param y2           right bottom corner y
+         * @param color        0b  00000|   000000|    00000
+         *                     channel 0|channel 1|channel 2 
+         */
+        void draw_hollow_rectangle(uint16_t *image, const uint32_t image_height, const uint32_t image_width,
+                                   uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2,
+                                   const uint16_t color=0b1111100000000000);
     } // namespace image
 } // namespace dl
